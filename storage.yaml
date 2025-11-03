@@ -1,0 +1,1110 @@
+write_mode: frame
+period_ms: 5000
+per_second_sample_interval_ms: 250
+per_second_fallback_policy: last
+per_second_timestamp_edge: end
+influxdb:
+    influx_url: http://localhost:8086
+    influx_token: q_uZ5e7TthxPvZR1xRjq9cnslZNKgh531cUAsBiAUtWfCgRMXlRh4w6tphMbSlUTLlsNBN6JGPr7VX-zaS4FIQ==
+    influx_org: bms
+    influx_bucket: mbkt
+    influx_measurement: data_center
+registers:
+    - collector: BMU1
+      reg_type: input
+      addr: 2
+      zh_name: 系统总功率
+      en_name: power
+      unit: KW
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 3
+      zh_name: 系统总电压
+      en_name: volt
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 4
+      zh_name: 系统总电流
+      en_name: curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 5
+      zh_name: 系统总SOC
+      en_name: soc
+      unit: '%'
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 6
+      zh_name: 支路1电流
+      en_name: branch1_curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 7
+      zh_name: 支路2电流
+      en_name: branch2_curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 8
+      zh_name: 支路3电流
+      en_name: branch3_curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 9
+      zh_name: 子1-SOC
+      en_name: zi1_soc
+      unit: '%'
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 10
+      zh_name: 子1-OCV
+      en_name: zi1_ocv
+      unit: V
+      decimals: 4
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 11
+      zh_name: 子1-总功率
+      en_name: zi1_power
+      unit: KW
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 12
+      zh_name: 子1-总电压
+      en_name: zi1_volt
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 13
+      zh_name: 子1-电堆1
+      en_name: zi1_stack1
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 14
+      zh_name: 子1-电堆2
+      en_name: zi1_stack2
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 15
+      zh_name: 子1-电堆3
+      en_name: zi1_stack3
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 16
+      zh_name: 子1-电堆4
+      en_name: zi1_stack4
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 17
+      zh_name: 子1-电堆5
+      en_name: zi1_stack5
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 18
+      zh_name: 子1-电堆6
+      en_name: zi1_stack6
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 19
+      zh_name: 子1-电堆7
+      en_name: zi1_stack7
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 20
+      zh_name: 子1-电堆8
+      en_name: zi1_stack8
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 21
+      zh_name: 子1-电堆9
+      en_name: zi1_stack9
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 22
+      zh_name: 子1-RCV
+      en_name: zi1_rcv
+      unit: mV
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 23
+      zh_name: 子1-RCV-CVS
+      en_name: zi1_rcv_cvs
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 24
+      zh_name: 子1-RCV-CR
+      en_name: zi1_rcv_cr
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 25
+      zh_name: 子1-正极目标频率
+      en_name: zi1_pos_freq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 26
+      zh_name: 子1-负极目标频率
+      en_name: zi1_neg_freq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 27
+      zh_name: 子1-正极运行频率
+      en_name: zi1_pos_runfreq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 28
+      zh_name: 子1-负极运行频率
+      en_name: zi1_neg_runfreq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 29
+      zh_name: 子1-正极运行电流
+      en_name: zi1_pos_cur
+      unit: A
+      decimals: 2
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 30
+      zh_name: 子1-负极运行电流
+      en_name: zi1_neg_cur
+      unit: A
+      decimals: 2
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 31
+      zh_name: 子1-正极压力
+      en_name: zi1_pos_press
+      unit: mpa
+      decimals: 3
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 32
+      zh_name: 子1-负极压力
+      en_name: zi1_neg_press
+      unit: mpa
+      decimals: 3
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 33
+      zh_name: 子1-正负压力差
+      en_name: zi1_press_diff
+      unit: mpa
+      decimals: 3
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 34
+      zh_name: 子1-正极流量
+      en_name: zi1_pos_flow
+      unit: m³/h
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 35
+      zh_name: 子1-负极流量
+      en_name: zi1_neg_flow
+      unit: m³/h
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 36
+      zh_name: 子1-正负流量差
+      en_name: zi1_flow_diff
+      unit: m³/h
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 37
+      zh_name: 子1-正极电解液温度
+      en_name: zi1_pos_liq_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 38
+      zh_name: 子1-负极电解液温度
+      en_name: zi1_neg_liq_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 39
+      zh_name: 子1-负极储罐1温度
+      en_name: zi1_neg_tank1_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 40
+      zh_name: 子1-负极储罐2温度
+      en_name: zi1_neg_tank2_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 41
+      zh_name: 子1-负泵空间温度
+      en_name: zi1_neg_pump_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 42
+      zh_name: 子1-功率箱温度
+      en_name: zi1_powerbox_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 43
+      zh_name: 子1-隔膜泵电流
+      en_name: zi1_mem_pump_cur
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 44
+      zh_name: 子1-氢气浓度
+      en_name: zi1_h2_conc
+      unit: LEL
+      decimals: 0
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 45
+      zh_name: 子2-SOC
+      en_name: zi2_soc
+      unit: '%'
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 46
+      zh_name: 子2-OCV
+      en_name: zi2_ocv
+      unit: V
+      decimals: 4
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 47
+      zh_name: 子2-总功率
+      en_name: zi2_power
+      unit: KW
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 48
+      zh_name: 子2-总电压
+      en_name: zi2_volt
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 49
+      zh_name: 子2-电堆1
+      en_name: zi2_stack1
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 50
+      zh_name: 子2-电堆2
+      en_name: zi2_stack2
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 51
+      zh_name: 子2-电堆3
+      en_name: zi2_stack3
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 52
+      zh_name: 子2-电堆4
+      en_name: zi2_stack4
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 53
+      zh_name: 子2-电堆5
+      en_name: zi2_stack5
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 54
+      zh_name: 子2-电堆6
+      en_name: zi2_stack6
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 55
+      zh_name: 子2-电堆7
+      en_name: zi2_stack7
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 56
+      zh_name: 子2-电堆8
+      en_name: zi2_stack8
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 57
+      zh_name: 子2-电堆9
+      en_name: zi2_stack9
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 58
+      zh_name: 子2-RCV
+      en_name: zi2_rcv
+      unit: mV
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 59
+      zh_name: 子2-RCV-CVS
+      en_name: zi2_rcv_cvs
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 60
+      zh_name: 子2-RCV-CR
+      en_name: zi2_rcv_cr
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 61
+      zh_name: 子2-正极目标频率
+      en_name: zi2_pos_freq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 62
+      zh_name: 子2-负极目标频率
+      en_name: zi2_neg_freq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 63
+      zh_name: 子2-正极运行频率
+      en_name: zi2_pos_runfreq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 64
+      zh_name: 子2-负极运行频率
+      en_name: zi2_neg_runfreq
+      unit: HZ
+      decimals: 2
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 65
+      zh_name: 子2-正极运行电流
+      en_name: zi2_pos_cur
+      unit: A
+      decimals: 2
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 66
+      zh_name: 子2-负极运行电流
+      en_name: zi2_neg_cur
+      unit: A
+      decimals: 2
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 67
+      zh_name: 子2-正极压力
+      en_name: zi2_pos_press
+      unit: mpa
+      decimals: 3
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 68
+      zh_name: 子2-负极压力
+      en_name: zi2_neg_press
+      unit: mpa
+      decimals: 3
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 69
+      zh_name: 子2-正负压力差
+      en_name: zi2_press_diff
+      unit: mpa
+      decimals: 3
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 70
+      zh_name: 子2-正极流量
+      en_name: zi2_pos_flow
+      unit: m³/h
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 71
+      zh_name: 子2-负极流量
+      en_name: zi2_neg_flow
+      unit: m³/h
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 72
+      zh_name: 子2-正负流量差
+      en_name: zi2_flow_diff
+      unit: m³/h
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 73
+      zh_name: 子2-正极电解液温度
+      en_name: zi2_pos_liq_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 74
+      zh_name: 子2-负极电解液温度
+      en_name: zi2_neg_liq_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 75
+      zh_name: 子2-负极储罐1温度
+      en_name: zi2_neg_tank1_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 76
+      zh_name: 子2-负极储罐2温度
+      en_name: zi2_neg_tank2_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 77
+      zh_name: 子2-负泵空间温度
+      en_name: zi2_neg_pump_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 78
+      zh_name: 子2-功率箱温度
+      en_name: zi2_powerbox_temp
+      unit: ℃
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 79
+      zh_name: 子2-隔膜泵电流
+      en_name: zi2_mem_pump_cur
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 80
+      zh_name: 子2-氢气浓度
+      en_name: zi2_h2_conc
+      unit: LEL
+      decimals: 0
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 81
+      zh_name: 系统故障标识
+      en_name: fault_flag
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 82
+      zh_name: 子1-停机故障高报字1
+      en_name: zi1_shutdown_high1
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 83
+      zh_name: 子1-停机故障高报字2
+      en_name: zi1_shutdown_high2
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 84
+      zh_name: 子1-停机故障高报字3
+      en_name: zi1_shutdown_high3
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 85
+      zh_name: 子1-停机故障高报字4
+      en_name: zi1_shutdown_high4
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 86
+      zh_name: 子1-停机故障高报字5
+      en_name: zi1_shutdown_high5
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 87
+      zh_name: 子1-停机故障高报字6
+      en_name: zi1_shutdown_high6
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 88
+      zh_name: 子1-停机故障高报字7
+      en_name: zi1_shutdown_high7
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 89
+      zh_name: 子1-停机故障高报字8
+      en_name: zi1_shutdown_high8
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 90
+      zh_name: 子1-停机故障高报字9
+      en_name: zi1_shutdown_high9
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 91
+      zh_name: 子1-停机故障低报字1
+      en_name: zi1_shutdown_low1
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 92
+      zh_name: 子1-停机故障低报字2
+      en_name: zi1_shutdown_low2
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 93
+      zh_name: 子1-停机故障低报字3
+      en_name: zi1_shutdown_low3
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 94
+      zh_name: 子1-停机故障低报字4
+      en_name: zi1_shutdown_low4
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 95
+      zh_name: 子1-停机故障低报字5
+      en_name: zi1_shutdown_low5
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 96
+      zh_name: 子1-停机故障低报字6
+      en_name: zi1_shutdown_low6
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 97
+      zh_name: 子1-停机故障低报字7
+      en_name: zi1_shutdown_low7
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 98
+      zh_name: 子1-停机故障低报字8
+      en_name: zi1_shutdown_low8
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 99
+      zh_name: 子1-停机故障低报字9
+      en_name: zi1_shutdown_low9
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 100
+      zh_name: 子1-报警高报字1
+      en_name: zi1_alarm_high1
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 101
+      zh_name: 子1-报警高报字2
+      en_name: zi1_alarm_high2
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 102
+      zh_name: 子1-报警高报字3
+      en_name: zi1_alarm_high3
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 103
+      zh_name: 子1-报警高报字4
+      en_name: zi1_alarm_high4
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 104
+      zh_name: 子1-报警高报字5
+      en_name: zi1_alarm_high5
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 105
+      zh_name: 子1-报警高报字6
+      en_name: zi1_alarm_high6
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 106
+      zh_name: 子1-报警高报字7
+      en_name: zi1_alarm_high7
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 107
+      zh_name: 子1-报警高报字8
+      en_name: zi1_alarm_high8
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 108
+      zh_name: 子1-报警高报字9
+      en_name: zi1_alarm_high9
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 109
+      zh_name: 子1-报警低报字1
+      en_name: zi1_alarm_low1
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 110
+      zh_name: 子1-报警低报字2
+      en_name: zi1_alarm_low2
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 111
+      zh_name: 子1-报警低报字3
+      en_name: zi1_alarm_low3
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 112
+      zh_name: 子1-报警低报字4
+      en_name: zi1_alarm_low4
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 113
+      zh_name: 子1-报警低报字5
+      en_name: zi1_alarm_low5
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 114
+      zh_name: 子1-报警低报字6
+      en_name: zi1_alarm_low6
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 115
+      zh_name: 子1-报警低报字7
+      en_name: zi1_alarm_low7
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 116
+      zh_name: 子1-报警低报字8
+      en_name: zi1_alarm_low8
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 117
+      zh_name: 子1-报警低报字9
+      en_name: zi1_alarm_low9
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 118
+      zh_name: 漏液板1结果字
+      en_name: leak_panel1
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 119
+      zh_name: 漏液板2结果字
+      en_name: leak_panel2
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 122
+      zh_name: 硬DI模块反馈字低16位
+      en_name: hard_di_low16
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 123
+      zh_name: 硬DI模块反馈字高16位
+      en_name: hard_di_high16
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 124
+      zh_name: 软DI模块反馈字1
+      en_name: soft_di1
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 125
+      zh_name: 软DI模块反馈字2
+      en_name: soft_di2
+      unit: ""
+      decimals: 0
+      type: uint16
+      length: 1

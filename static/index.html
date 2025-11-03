@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>YAML 寄存器编辑器</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        :root {
+            --bg-color:#f5f7fa;
+            --card-bg:#fff;
+            --primary:#409EFF;
+            --primary-hover:#66b1ff;
+            --danger:#f56c6c;
+            --danger-hover:#ff7e7e;
+            --success:#67c23a;
+            --border:#dcdfe6;
+            --border-light:#ebeef5;
+            --radius:4px;
+            --shadow:0 2px 8px rgba(0,0,0,.06);
+            --text:#303133;
+            --text-secondary:#606266;
+            --font-size:14px;
+        }
+        *{box-sizing:border-box;}
+        html,body{
+            margin:0;
+            padding:0;
+            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","PingFang SC","Microsoft YaHei",sans-serif;
+            font-size:var(--font-size);
+            background:var(--bg-color);
+            color:var(--text);
+            -webkit-font-smoothing:antialiased;
+        }
+        .app{max-width:1400px;margin:0 auto;padding:12px 18px 42px;}
+        .topbar{
+            background:#fff;
+            border:1px solid var(--border-light);
+            box-shadow:var(--shadow);
+            padding:10px 18px;
+            border-radius:var(--radius);
+            display:flex;
+            align-items:center;
+            gap:18px;
+            margin-bottom:14px;
+        }
+        .topbar .title{font-size:16px;font-weight:600;letter-spacing:.5px;}
+        .topbar .status{margin-left:auto;font-size:13px;color:var(--text-secondary);}
+        .toolbar{
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-bottom:10px;
+            align-items:center;
+        }
+        button{
+            font:inherit;
+            padding:6px 14px;
+            border:1px solid var(--border);
+            background:#fff;
+            color:var(--text);
+            border-radius:var(--radius);
+            cursor:pointer;
+            line-height:1;
+            transition:.15s ease;
+            display:inline-flex;
+            align-items:center;
+            gap:4px;
+            user-select:none;
+        }
+        button:hover{background:#f2f6fc;border-color:#c6e2ff;}
+        button.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+        button.primary:hover{background:var(--primary-hover);}
+        button.success{background:var(--success);border-color:var(--success);color:#fff;}
+        button.success:hover{background:#85d165;}
+        button.danger{background:var(--danger);border-color:var(--danger);color:#fff;}
+        button.danger:hover{background:var(--danger-hover);}
+        button.small{padding:4px 10px;font-size:12px;}
+        input[type="text"]{
+            padding:6px 10px;
+            border:1px solid var(--border);
+            border-radius:var(--radius);
+            background:#fff;
+            outline:none;
+            width:220px;
+            transition:.15s ease;
+            font:inherit;
+        }
+        input[type="text"]:focus{border-color:var(--primary);box-shadow:0 0 0 1px rgba(64,158,255,.15);}
+        #filterInput{width:330px;}
+        .disabled{opacity:.55;pointer-events:none;}
+        #msg{min-height:18px;margin:4px 0 6px;font-size:12px;color:var(--danger);white-space:pre-line;}
+        .table-wrapper{
+            background:#fff;
+            border:1px solid var(--border-light);
+            border-radius:var(--radius);
+            box-shadow:var(--shadow);
+            overflow:hidden;
+        }
+        table{
+            border-collapse:collapse;
+            width:100%;
+            font-size:13px;
+            table-layout:auto;
+        }
+        thead{
+            background:#f8f9fb;
+            color:var(--text-secondary);
+            user-select:none;
+        }
+        th,td{
+            padding:9px 12px;
+            border:1px solid var(--border-light);
+            vertical-align:middle;
+            text-align:left;
+            white-space:nowrap;
+        }
+        th{font-weight:600;}
+        td{font-weight:normal;}
+        tbody tr{transition:.12s ease;}
+        tbody tr:hover{background:#f5fafe;}
+        td[contenteditable="true"]{
+            background:#fff;
+            outline:none;
+            border-radius:2px;
+        }
+        tr.dirty td[contenteditable="true"]{background:#fff7e6;}
+        .error-cell{
+            background:#ffecec !important;
+            position:relative;
+        }
+        .error-cell::after{
+            content:"!";
+            position:absolute;
+            top:3px;
+            right:6px;
+            font-weight:600;
+            color:var(--danger);
+            font-size:12px;
+        }
+        .action-buttons button.small{margin-right:4px;}
+        footer{
+            margin-top:26px;
+            text-align:center;
+            font-size:12px;
+            color:#7d8a99;
+            letter-spacing:.3px;
+            font-weight:600;
+        }
+        footer .brand-line{
+            font-size:13px;
+            color:#5a646e;
+        }
+        @media (max-width:1100px){
+            th,td{white-space:nowrap;font-size:12px;padding:6px 8px;}
+            button{padding:5px 12px;}
+            #filterInput{width:260px;}
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="topbar">
+        <div class="title">寄存器配置编辑</div>
+        <span id="status" class="status">初始化...</span>
+    </div>
+
+    <div class="toolbar">
+        <button id="reloadBtn" class="success">重载</button>
+        <button id="addRowBtn" class="primary" disabled>新增行</button>
+        <button id="saveBtn" class="primary" disabled>保存 (Ctrl+S)</button>
+        <button id="exportBtn" disabled>导出 YAML</button>
+        <input id="filterInput" type="text" placeholder="过滤 (所属设备 / 英文标签 / 中文标签)" disabled />
+    </div>
+
+    <div id="msg"></div>
+
+    <div class="table-wrapper">
+        <table id="regTable">
+            <thead>
+            <tr>
+                <th>序号</th>
+                <th>所属设备</th>
+                <th>寄存器类型</th>
+                <th>寄存器地址</th>
+                <th>中文标签</th>
+                <th>英文标签</th>
+                <th>单位</th>
+                <th>小数位</th>
+                <th>数据类型</th>
+                <th>数据长度</th>
+                <th style="min-width:180px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <footer>
+        <div class="brand-line">
+            Dalian Bingshan Guardian Automation Co., Ltd. • CS Export Config
+        </div>
+    </footer>
+</div>
+
+<script>
+    let currentVersion=0, config=null, registers=[], dirtyRows=new Set(), loaded=false;
+    const statusSpan=document.getElementById("status");
+    const msgDiv=document.getElementById("msg");
+    const reloadBtn=document.getElementById("reloadBtn");
+    const addRowBtn=document.getElementById("addRowBtn");
+    const saveBtn=document.getElementById("saveBtn");
+    const exportBtn=document.getElementById("exportBtn");
+    const filterInput=document.getElementById("filterInput");
+    const tableBody=document.getElementById("tableBody");
+
+    function showErr(m){ msgDiv.textContent=m; }
+    function clearErr(){ msgDiv.textContent=""; }
+    function setEnabled(e){
+        [addRowBtn, saveBtn, exportBtn, filterInput].forEach(el=> el.disabled=!e);
+        if(!e) dirtyRows.clear();
+    }
+
+    async function init(){
+        const st=await fetch("/api/status").then(r=>r.json()).catch(()=>null);
+        if(!st){ showErr("获取状态失败"); return; }
+        if(!st.loaded){
+            showErr("文件未加载: "+(st.error||"未知错误"));
+            statusSpan.textContent="加载失败";
+            return;
+        }
+        loaded=true;
+        statusSpan.textContent="已加载: "+st.path+"  version="+st.version+" 行="+st.rows;
+        setEnabled(true);
+        await loadConfig();
+    }
+
+    async function loadConfig(){
+        const resp=await fetch("/api/config");
+        if(!resp.ok){
+            const e=await resp.json().catch(()=>({error:"加载失败"}));
+            showErr(e.error); return;
+        }
+        const data=await resp.json();
+        currentVersion=data.version;
+        config=data.config;
+        registers=JSON.parse(JSON.stringify(config.registers));
+        renderTable();
+        clearErr();
+    }
+
+    function filterRows(){
+        const kw=filterInput.value.trim().toLowerCase();
+        if(!kw) return registers.map((_,i)=>i);
+        return registers.map((r,i)=>({r,i}))
+            .filter(o => (o.r.collector+"|"+o.r.en_name+"|"+o.r.zh_name).toLowerCase().includes(kw))
+            .map(o=>o.i);
+    }
+
+    function renderTable(){
+        tableBody.innerHTML="";
+        const idxs=filterRows();
+        idxs.forEach(i=>{
+            const r=registers[i];
+            const tr=document.createElement("tr");
+            tr.dataset.index=i;
+            if(dirtyRows.has(i)) tr.classList.add("dirty");
+            const cells=[i+1,r.collector,r.reg_type,r.addr,r.zh_name,r.en_name,r.unit,r.decimals,r.type,r.length];
+            cells.forEach((val,cIdx)=>{
+                const td=document.createElement("td");
+                if(cIdx>0){
+                    td.contentEditable="true";
+                    td.addEventListener("input",()=>markDirty(i));
+                    td.addEventListener("blur",()=>{ updateField(i,cIdx,td.textContent.trim()); validateCell(td,i,cIdx); });
+                }
+                td.textContent=val;
+                tr.appendChild(td);
+            });
+            const op=document.createElement("td");
+            op.className="action-buttons";
+            op.appendChild(btn("复制",()=>copyRow(i),"small primary"));
+            op.appendChild(btn("删除",()=>delRow(i),"small danger"));
+            op.appendChild(btn("↑",()=>moveRow(i,-1),"small"));
+            op.appendChild(btn("↓",()=>moveRow(i,1),"small"));
+            tr.appendChild(op);
+            tableBody.appendChild(tr);
+        });
+    }
+
+    function btn(text,handler,classes=""){
+        const b=document.createElement("button");
+        b.type="button";
+        b.className=classes;
+        b.textContent=text;
+        b.addEventListener("click",handler);
+        return b;
+    }
+
+    function markDirty(i){
+        dirtyRows.add(i);
+        const tr=tableBody.querySelector("tr[data-index='"+i+"']");
+        if(tr) tr.classList.add("dirty");
+        statusSpan.textContent="未保存("+dirtyRows.size+"行) version="+currentVersion;
+    }
+    function updateField(i,col,val){
+        const r=registers[i];
+        switch(col){
+            case 1:r.collector=val;break;
+            case 2:r.reg_type=val;break;
+            case 3:r.addr=parseInt(val,10)||0;break;
+            case 4:r.zh_name=val;break;
+            case 5:r.en_name=val;break;
+            case 6:r.unit=val;break;
+            case 7:r.decimals=parseInt(val,10)||0;break;
+            case 8:r.type=val;break;
+            case 9:r.length=parseInt(val,10)||0;break;
+        }
+    }
+    function validateCell(td,i,col){
+        td.classList.remove("error-cell");
+        const r=registers[i];
+        if(col===3 && !(r.addr>0 && r.addr<=65535)) td.classList.add("error-cell");
+        if(col===8 && !["int16","uint16","float32"].includes(r.type)) td.classList.add("error-cell");
+        if(col===9){
+            const rule={int16:1,uint16:1,float32:2}[r.type];
+            if(rule && r.length!==rule) td.classList.add("error-cell");
+        }
+        if(col===3){
+            const dup=registers.some((x,j)=> j!==i && x.collector===r.collector && x.addr===r.addr);
+            if(dup) td.classList.add("error-cell");
+        }
+    }
+    function copyRow(i){
+        const c=JSON.parse(JSON.stringify(registers[i]));
+        registers.splice(i+1,0,c);
+        structuralChanged();
+    }
+    function delRow(i){
+        if(!confirm("确认删除该行?")) return;
+        registers.splice(i,1);
+        structuralChanged();
+    }
+    function moveRow(i,d){
+        const ni=i+d;
+        if(ni<0||ni>=registers.length) return;
+        const item=registers.splice(i,1)[0];
+        registers.splice(ni,0,item);
+        structuralChanged();
+    }
+    function structuralChanged(){
+        dirtyRows=new Set(registers.map((_,i)=>i));
+        renderTable();
+        statusSpan.textContent="结构调整 未保存";
+    }
+
+    addRowBtn.addEventListener("click",()=>{
+        const reg={
+            collector:"BMU1",
+            reg_type:"input",
+            addr:nextFreeAddr("BMU1"),
+            zh_name:"",
+            en_name:"",
+            unit:"",
+            decimals:0,
+            type:"uint16",
+            length:1
+        };
+        registers.push(reg);
+        renderTable();
+        markDirty(registers.length-1);
+    });
+    function nextFreeAddr(collector){
+        const used=new Set();
+        registers.forEach(r=>{ if(r.collector===collector) used.add(r.addr); });
+        for(let a=1;a<=65535;a++) if(!used.has(a)) return a;
+        return 1;
+    }
+
+    filterInput.addEventListener("input",()=>renderTable());
+    reloadBtn.addEventListener("click",()=>reloadFromDisk());
+    saveBtn.addEventListener("click",()=>saveAll());
+    exportBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/yaml"; });
+
+    document.addEventListener("keydown",e=>{
+        if(e.ctrlKey && e.key==="s"){
+            e.preventDefault();
+            if(loaded) saveAll();
+        }
+    });
+
+    async function saveAll(){
+        if(!config){ showErr("未加载配置"); return; }
+        config.registers=registers;
+        const payload={version:currentVersion,config};
+        clearErr();
+        const resp=await fetch("/api/config",{
+            method:"PUT",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(payload)
+        });
+        if(!resp.ok){
+            const e=await resp.json().catch(()=>({error:"保存失败"}));
+            showErr(e.error); return;
+        }
+        const data=await resp.json();
+        currentVersion=data.version;
+        dirtyRows.clear();
+        tableBody.querySelectorAll("tr").forEach(tr=>tr.classList.remove("dirty"));
+        statusSpan.textContent="保存成功 version="+currentVersion;
+    }
+
+    async function reloadFromDisk(){
+        if(!confirm("确认从磁盘重载并丢弃未保存修改?")) return;
+        const resp=await fetch("/api/reload",{method:"POST"});
+        if(!resp.ok){
+            const e=await resp.json().catch(()=>({error:"重载失败"}));
+            showErr(e.error); return;
+        }
+        const data=await resp.json();
+        currentVersion=data.version;
+        await loadConfig();
+        statusSpan.textContent="重载成功 version="+currentVersion;
+    }
+
+    function showErr(m){ msgDiv.textContent=m; }
+    function clearErr(){ msgDiv.textContent=""; }
+
+    init();
+</script>
+</body>
+</html>
