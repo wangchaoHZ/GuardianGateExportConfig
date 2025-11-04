@@ -169,6 +169,7 @@
         <button id="addRowBtn" class="primary" disabled>新增行</button>
         <button id="saveBtn" class="primary" disabled>保存 (Ctrl+S)</button>
         <button id="exportBtn" disabled>导出 YAML</button>
+        <button id="restartSvcBtn" class="danger" disabled>重启采集服务</button>
         <input id="filterInput" type="text" placeholder="过滤 (所属设备 / 英文标签 / 中文标签)" disabled />
     </div>
 
@@ -210,13 +211,16 @@
     const addRowBtn=document.getElementById("addRowBtn");
     const saveBtn=document.getElementById("saveBtn");
     const exportBtn=document.getElementById("exportBtn");
+    const restartSvcBtn=document.getElementById("restartSvcBtn");
     const filterInput=document.getElementById("filterInput");
     const tableBody=document.getElementById("tableBody");
 
-    function showErr(m){ msgDiv.textContent=m; }
-    function clearErr(){ msgDiv.textContent=""; }
+    function showErr(m){ msgDiv.style.color="#f56c6c"; msgDiv.textContent=m; }
+    function showInfo(m){ msgDiv.style.color="#409EFF"; msgDiv.textContent=m; }
+    function clearMsg(){ msgDiv.textContent=""; }
+
     function setEnabled(e){
-        [addRowBtn, saveBtn, exportBtn, filterInput].forEach(el=> el.disabled=!e);
+        [addRowBtn, saveBtn, exportBtn, filterInput, restartSvcBtn].forEach(el=> el.disabled=!e);
         if(!e) dirtyRows.clear();
     }
 
@@ -245,7 +249,7 @@
         config=data.config;
         registers=JSON.parse(JSON.stringify(config.registers));
         renderTable();
-        clearErr();
+        clearMsg();
     }
 
     function filterRows(){
@@ -378,7 +382,11 @@
     filterInput.addEventListener("input",()=>renderTable());
     reloadBtn.addEventListener("click",()=>reloadFromDisk());
     saveBtn.addEventListener("click",()=>saveAll());
-    exportBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/yaml"; });
+    exportBtn.addEventListener("click",()=>{
+        if(!loaded) return;
+        window.location="/api/export/yaml";
+    });
+    restartSvcBtn.addEventListener("click", ()=>restartService());
 
     document.addEventListener("keydown",e=>{
         if(e.ctrlKey && e.key==="s"){
@@ -391,38 +399,56 @@
         if(!config){ showErr("未加载配置"); return; }
         config.registers=registers;
         const payload={version:currentVersion,config};
-        clearErr();
+        clearMsg();
         const resp=await fetch("/api/config",{
             method:"PUT",
             headers:{"Content-Type":"application/json"},
             body:JSON.stringify(payload)
         });
+        const data=await resp.json().catch(()=>null);
         if(!resp.ok){
-            const e=await resp.json().catch(()=>({error:"保存失败"}));
-            showErr(e.error); return;
+            showErr(data && data.error ? data.error : "保存失败");
+            return;
         }
-        const data=await resp.json();
         currentVersion=data.version;
         dirtyRows.clear();
         tableBody.querySelectorAll("tr").forEach(tr=>tr.classList.remove("dirty"));
         statusSpan.textContent="保存成功 version="+currentVersion;
+        showInfo("保存完成");
     }
 
     async function reloadFromDisk(){
         if(!confirm("确认从磁盘重载并丢弃未保存修改?")) return;
         const resp=await fetch("/api/reload",{method:"POST"});
+        const data=await resp.json().catch(()=>null);
         if(!resp.ok){
-            const e=await resp.json().catch(()=>({error:"重载失败"}));
-            showErr(e.error); return;
+            showErr(data && data.error ? data.error : "重载失败");
+            return;
         }
-        const data=await resp.json();
         currentVersion=data.version;
         await loadConfig();
         statusSpan.textContent="重载成功 version="+currentVersion;
+        showInfo("重载完成");
     }
 
-    function showErr(m){ msgDiv.textContent=m; }
-    function clearErr(){ msgDiv.textContent=""; }
+    async function restartService(){
+        if(!confirm("确认重启采集服务?")) return;
+        restartSvcBtn.disabled=true;
+        showInfo("正在请求重启...");
+        try{
+            const resp=await fetch("/api/restart-service",{method:"POST"});
+            const data=await resp.json().catch(()=>null);
+            if(!resp.ok){
+                showErr(data && data.error ? ("重启失败: "+data.error) : "重启失败");
+            }else{
+                showInfo("重启已触发: "+(data.detail||""));
+            }
+        }catch(e){
+            showErr("请求异常: "+e.message);
+        }finally{
+            restartSvcBtn.disabled=false;
+        }
+    }
 
     init();
 </script>

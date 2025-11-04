@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -47,8 +48,12 @@ type Config struct {
 }
 
 type EditConfig struct {
-	TargetPath string `yaml:"target_yaml_path"`
+	TargetPath     string `yaml:"target_yaml_path"`
+	RestartService string `yaml:"restart_service"` // systemd 服务名
+	RestartCommand string `yaml:"restart_command"` // 可选：自定义命令(优先)
 }
+
+/* ---------- Service ---------- */
 
 type Service struct {
 	mu       sync.RWMutex
@@ -59,8 +64,6 @@ type Service struct {
 	lastErr  string
 	editConf EditConfig
 }
-
-/* ---------- 初始化 ---------- */
 
 func NewService() *Service { return &Service{} }
 
@@ -76,9 +79,7 @@ func (s *Service) loadEditConfig() {
 	}
 }
 
-func normalizePath(p string) string {
-	return strings.ReplaceAll(p, "\\", "/")
-}
+func normalizePath(p string) string { return strings.ReplaceAll(p, "\\", "/") }
 
 func (s *Service) openTarget() {
 	if s.editConf.TargetPath == "" {
@@ -120,18 +121,9 @@ func (s *Service) openTarget() {
 }
 
 /* ---------- 校验 ---------- */
-/*
-  规则：
-  - 同一个 collector 内 (addr) 唯一；不同 collector 允许地址重复。
-  - type 与 length 匹配 (int16/uint16 => 1, float32 => 2)
-  - decimals >= 0
-  - addr 在 1..65535
-  - collector 与 reg_type 非空
-*/
 func validateConfig(cfg *Config) error {
 	typeLen := map[string]int{"int16": 1, "uint16": 1, "float32": 2}
 	seen := make(map[string]map[int]struct{})
-
 	for i, r := range cfg.Registers {
 		c := strings.TrimSpace(r.Collector)
 		if c == "" {
@@ -161,7 +153,7 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-/* ---------- 保存（无备份） ---------- */
+/* ---------- 保存 ---------- */
 
 func (s *Service) saveUnsafe() error {
 	if !s.loaded {
@@ -184,12 +176,13 @@ func (s *Service) status(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	writeJSON(w, 200, map[string]any{
-		"loaded":     s.loaded,
-		"version":    s.version,
-		"path":       s.path,
-		"rows":       len(s.config.Registers),
-		"error":      s.lastErr,
-		"targetPath": s.editConf.TargetPath,
+		"loaded":         s.loaded,
+		"version":        s.version,
+		"path":           s.path,
+		"rows":           len(s.config.Registers),
+		"error":          s.lastErr,
+		"targetPath":     s.editConf.TargetPath,
+		"restartService": s.editConf.RestartService,
 	})
 }
 
@@ -305,8 +298,10 @@ func (s *Service) exportYAML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, _ := yaml.Marshal(s.config)
+	ts := time.Now().Format("20060102_150405")
+	filename := fmt.Sprintf("registers_%s.yaml", ts)
 	w.Header().Set("Content-Type", "application/x-yaml; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(s.path))
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	w.WriteHeader(200)
 	_, _ = w.Write(data)
 }
@@ -320,7 +315,7 @@ func (s *Service) diff(w http.ResponseWriter, r *http.Request) {
 	}
 	since := r.URL.Query().Get("since")
 	writeJSON(w, 200, map[string]string{
-		"message":        "Diff 占位（需审计日志实现真实差异）",
+		"message":        "Diff 占位（未实现审计）",
 		"since_version":  since,
 		"currentVersion": fmt.Sprintf("%d", s.version),
 	})
@@ -340,8 +335,59 @@ func (s *Service) reload(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* ---------- 工具函数 ---------- */
+/* ---------- 新增: 重启目标服务 ---------- */
 
+func (s *Service) restartService(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeErr(w, 405, "Method Not Allowed")
+		return
+	}
+	// 优先使用 RestartCommand，如果提供
+	cmdLine := strings.TrimSpace(s.editConf.RestartCommand)
+	if cmdLine != "" {
+		go runShellCommand(cmdLine)
+		writeJSON(w, 200, map[string]any{
+			"status": "triggered",
+			"detail": "执行自定义命令",
+		})
+		return
+	}
+	svc := strings.TrimSpace(s.editConf.RestartService)
+	if svc == "" {
+		writeErr(w, 400, "未配置 restart_service 或 restart_command")
+		return
+	}
+	// systemctl restart
+	go func(name string) {
+		cmd := exec.Command("systemctl", "restart", name)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("[WARN] restart %s 失败: %v output=%s", name, err, string(out))
+		} else {
+			log.Printf("[INFO] restart %s OK: %s", name, string(out))
+		}
+	}(svc)
+	writeJSON(w, 200, map[string]any{
+		"status": "triggered",
+		"detail": "systemctl restart " + svc,
+	})
+}
+
+func runShellCommand(cmdLine string) {
+	parts := strings.Fields(cmdLine)
+	if len(parts) == 0 {
+		return
+	}
+	cmd := exec.Command(parts[0], parts[1:]...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[WARN] restart command 失败: %v output=%s", err, out)
+	} else {
+		log.Printf("[INFO] restart command OK output=%s", out)
+	}
+}
+
+/* ---------- 工具 ---------- */
 func writeErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
@@ -362,12 +408,10 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// 前端页面
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/index.html")
 	})
 
-	// API
 	r.Get("/api/status", svc.status)
 	r.Get("/api/config", svc.getConfig)
 	r.Put("/api/config", svc.putConfig)
@@ -376,7 +420,8 @@ func main() {
 	r.Get("/api/export/yaml", svc.exportYAML)
 	r.Get("/api/diff", svc.diff)
 	r.Post("/api/reload", svc.reload)
+	r.Post("/api/restart-service", svc.restartService) // 新增
 
-	log.Println("Goto:http://localhost:8080/")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Println("Goto: http://localhost:8089/")
+	log.Fatal(http.ListenAndServe(":8089", r))
 }

@@ -1,1 +1,4 @@
 target_yaml_path: "D:/CodeSource/GoProject/EditYaml/storage.yaml"
+restart_service: data_center.service
+# 可选：如果你更想用自定义命令而不是 systemctl，可加：
+# restart_command: systemctl restart data_center.service
