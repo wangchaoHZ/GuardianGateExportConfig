@@ -1,0 +1,111 @@
+write_mode: frame
+period_ms: 5000
+per_second_sample_interval_ms: 250
+per_second_fallback_policy: last
+per_second_timestamp_edge: end
+influxdb:
+    influx_url: http://localhost:8086
+    influx_token: q_uZ5e7TthxPvZR1xRjq9cnslZNKgh531cUAsBiAUtWfCgRMXlRh4w6tphMbSlUTLlsNBN6JGPr7VX-zaS4FIQ==
+    influx_org: bms
+    influx_bucket: mbkt
+    influx_measurement: data_center
+registers:
+    - collector: BMU1
+      reg_type: input
+      addr: 2
+      zh_name: 系统总功率
+      en_name: power
+      unit: KW
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 3
+      zh_name: 系统总电压
+      en_name: volt
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 4
+      zh_name: 系统总电流
+      en_name: curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 5
+      zh_name: 系统总SOC
+      en_name: soc
+      unit: '%'
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 6
+      zh_name: 支路1电流
+      en_name: branch1_curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 7
+      zh_name: 支路2电流
+      en_name: branch2_curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 8
+      zh_name: 支路3电流
+      en_name: branch3_curr
+      unit: A
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 9
+      zh_name: 子1-SOC
+      en_name: zi1_soc
+      unit: '%'
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 10
+      zh_name: 子1-OCV
+      en_name: zi1_ocv
+      unit: V
+      decimals: 4
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 11
+      zh_name: 子1-总功率
+      en_name: zi1_power
+      unit: KW
+      decimals: 1
+      type: int16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 12
+      zh_name: 子1-总电压
+      en_name: zi1_volt
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1

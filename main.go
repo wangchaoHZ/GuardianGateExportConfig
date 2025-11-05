@@ -17,7 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-/* ---------- 数据结构 ---------- */
+/* ---------- 数据结构 (保持原样，无 ID) ---------- */
 
 type Register struct {
 	Collector string `yaml:"collector" json:"collector"`
@@ -49,23 +49,37 @@ type Config struct {
 
 type EditConfig struct {
 	TargetPath     string `yaml:"target_yaml_path"`
-	RestartService string `yaml:"restart_service"` // systemd 服务名
-	RestartCommand string `yaml:"restart_command"` // 可选：自定义命令(优先)
+	RestartService string `yaml:"restart_service"`
+	RestartCommand string `yaml:"restart_command"`
+}
+
+/* ---------- 导出选择文件结构 ---------- */
+
+type selectionData struct {
+	Selected []string `json:"selected"`
 }
 
 /* ---------- Service ---------- */
 
 type Service struct {
-	mu       sync.RWMutex
-	loaded   bool
-	version  int
-	path     string
-	config   Config
-	lastErr  string
-	editConf EditConfig
+	mu              sync.RWMutex
+	loaded          bool
+	version         int
+	path            string
+	config          Config
+	lastErr         string
+	editConf        EditConfig
+	selectionPath   string
+	exportFilePath  string
+	exportSelection map[string]struct{} // key: collector|reg_type|addr
 }
 
-func NewService() *Service { return &Service{} }
+func NewService() *Service {
+	return &Service{
+		selectionPath:   "export_selection.json",
+		exportSelection: make(map[string]struct{}),
+	}
+}
 
 func (s *Service) loadEditConfig() {
 	data, err := os.ReadFile("edit_config.yaml")
@@ -78,7 +92,6 @@ func (s *Service) loadEditConfig() {
 		return
 	}
 }
-
 func normalizePath(p string) string { return strings.ReplaceAll(p, "\\", "/") }
 
 func (s *Service) openTarget() {
@@ -111,13 +124,18 @@ func (s *Service) openTarget() {
 		return
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.config = cfg
 	s.version = int(time.Now().Unix())
 	s.path = abs
 	s.loaded = true
 	s.lastErr = ""
-	s.mu.Unlock()
-	log.Printf("[INFO] 成功加载文件: %s version=%d", s.path, s.version)
+	dir := filepath.Dir(abs)
+	s.exportFilePath = filepath.Join(dir, "export.yaml")
+	s.loadSelectionFileLocked()
+	s.pruneSelectionLocked()
+	_ = s.writeExportFileLocked()
+	log.Printf("[INFO] 成功加载文件: %s version=%d export=%s", s.path, s.version, s.exportFilePath)
 }
 
 /* ---------- 校验 ---------- */
@@ -154,7 +172,6 @@ func validateConfig(cfg *Config) error {
 }
 
 /* ---------- 保存 ---------- */
-
 func (s *Service) saveUnsafe() error {
 	if !s.loaded {
 		return fmt.Errorf("尚未成功加载文件")
@@ -170,19 +187,111 @@ func (s *Service) saveUnsafe() error {
 	return os.Rename(tmp, s.path)
 }
 
+/* ---------- 导出选择逻辑 ---------- */
+
+func regKey(r *Register) string {
+	return fmt.Sprintf("%s|%s|%d", r.Collector, r.RegType, r.Addr)
+}
+
+func (s *Service) loadSelectionFileLocked() {
+	data, err := os.ReadFile(s.selectionPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			_ = os.WriteFile(s.selectionPath, []byte(`{"selected":[]}`), 0644)
+			return
+		}
+		log.Printf("[WARN] 读取导出选择文件失败: %v", err)
+		return
+	}
+	var sd selectionData
+	if err := json.Unmarshal(data, &sd); err != nil {
+		log.Printf("[WARN] 解析选择文件失败: %v", err)
+		return
+	}
+	m := make(map[string]struct{})
+	for _, id := range sd.Selected {
+		m[id] = struct{}{}
+	}
+	s.exportSelection = m
+}
+
+func (s *Service) writeSelectionFileLocked() {
+	sd := selectionData{Selected: s.exportKeysLocked()}
+	b, _ := json.MarshalIndent(sd, "", "  ")
+	_ = os.WriteFile(s.selectionPath, b, 0644)
+}
+
+func (s *Service) exportKeysLocked() []string {
+	out := make([]string, 0, len(s.exportSelection))
+	for k := range s.exportSelection {
+		out = append(out, k)
+	}
+	return out
+}
+
+func (s *Service) pruneSelectionLocked() {
+	valid := make(map[string]struct{})
+	for i := range s.config.Registers {
+		valid[regKey(&s.config.Registers[i])] = struct{}{}
+	}
+	changed := false
+	for k := range s.exportSelection {
+		if _, ok := valid[k]; !ok {
+			delete(s.exportSelection, k)
+			changed = true
+		}
+	}
+	if changed {
+		s.writeSelectionFileLocked()
+	}
+}
+
+func (s *Service) buildExportSubsetLocked() Config {
+	var out Config
+	out.WriteMode = s.config.WriteMode
+	out.PeriodMs = s.config.PeriodMs
+	out.PerSecondSampleIntervalMs = s.config.PerSecondSampleIntervalMs
+	out.PerSecondFallbackPolicy = s.config.PerSecondFallbackPolicy
+	out.PerSecondTimestampEdge = s.config.PerSecondTimestampEdge
+	out.InfluxDB = s.config.InfluxDB
+	for _, r := range s.config.Registers {
+		if _, ok := s.exportSelection[regKey(&r)]; ok {
+			out.Registers = append(out.Registers, r)
+		}
+	}
+	return out
+}
+
+func (s *Service) writeExportFileLocked() error {
+	sub := s.buildExportSubsetLocked()
+	data, err := yaml.Marshal(sub)
+	if err != nil {
+		return err
+	}
+	if s.exportFilePath == "" {
+		return fmt.Errorf("exportFilePath 未设置")
+	}
+	tmp := s.exportFilePath + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, s.exportFilePath)
+}
+
 /* ---------- HTTP Handlers ---------- */
 
 func (s *Service) status(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	writeJSON(w, 200, map[string]any{
-		"loaded":         s.loaded,
-		"version":        s.version,
-		"path":           s.path,
-		"rows":           len(s.config.Registers),
-		"error":          s.lastErr,
-		"targetPath":     s.editConf.TargetPath,
-		"restartService": s.editConf.RestartService,
+		"loaded":       s.loaded,
+		"version":      s.version,
+		"path":         s.path,
+		"rows":         len(s.config.Registers),
+		"error":        s.lastErr,
+		"targetPath":   s.editConf.TargetPath,
+		"export_count": len(s.exportSelection),
+		"export_file":  s.exportFilePath,
 	})
 }
 
@@ -228,7 +337,14 @@ func (s *Service) putConfig(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "保存失败: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]any{"version": s.version, "config": s.config})
+	s.pruneSelectionLocked()
+	_ = s.writeExportFileLocked()
+	writeJSON(w, 200, map[string]any{
+		"version":      s.version,
+		"config":       s.config,
+		"export_keys":  s.exportKeysLocked(),
+		"export_count": len(s.exportSelection),
+	})
 }
 
 func (s *Service) addRegister(w http.ResponseWriter, r *http.Request) {
@@ -255,6 +371,7 @@ func (s *Service) addRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "保存失败: "+err.Error())
 		return
 	}
+	_ = s.writeExportFileLocked()
 	writeJSON(w, 201, map[string]any{"version": s.version, "config": s.config})
 }
 
@@ -275,6 +392,7 @@ func (s *Service) deleteRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "index 越界")
 		return
 	}
+	removedKey := regKey(&s.config.Registers[idx])
 	tmp := s.config
 	tmp.Registers = append(tmp.Registers[:idx], tmp.Registers[idx+1:]...)
 	if err := validateConfig(&tmp); err != nil {
@@ -287,10 +405,15 @@ func (s *Service) deleteRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "保存失败: "+err.Error())
 		return
 	}
+	if _, ok := s.exportSelection[removedKey]; ok {
+		delete(s.exportSelection, removedKey)
+		s.writeSelectionFileLocked()
+	}
+	_ = s.writeExportFileLocked()
 	writeJSON(w, 200, map[string]any{"version": s.version, "rows": len(s.config.Registers)})
 }
 
-func (s *Service) exportYAML(w http.ResponseWriter, r *http.Request) {
+func (s *Service) exportAllYAML(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if !s.loaded {
@@ -299,11 +422,89 @@ func (s *Service) exportYAML(w http.ResponseWriter, r *http.Request) {
 	}
 	data, _ := yaml.Marshal(s.config)
 	ts := time.Now().Format("20060102_150405")
-	filename := fmt.Sprintf("registers_%s.yaml", ts)
+	filename := fmt.Sprintf("registers_full_%s.yaml", ts)
 	w.Header().Set("Content-Type", "application/x-yaml; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	w.WriteHeader(200)
 	_, _ = w.Write(data)
+}
+
+func (s *Service) exportSubsetYAML(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.loaded {
+		writeErr(w, 400, "未成功加载文件")
+		return
+	}
+	if err := s.writeExportFileLocked(); err != nil {
+		writeErr(w, 500, "生成 export.yaml 失败: "+err.Error())
+		return
+	}
+	data, err := os.ReadFile(s.exportFilePath)
+	if err != nil {
+		writeErr(w, 500, "读取 export.yaml 失败: "+err.Error())
+		return
+	}
+	ts := time.Now().Format("20060102_150405")
+	filename := fmt.Sprintf("export_subset_%s.yaml", ts)
+	w.Header().Set("Content-Type", "application/x-yaml; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	w.WriteHeader(200)
+	_, _ = w.Write(data)
+}
+
+func (s *Service) getExportSelection(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	writeJSON(w, 200, map[string]any{
+		"selected": s.exportKeysLocked(),
+		"count":    len(s.exportSelection),
+	})
+}
+
+func (s *Service) putExportSelection(w http.ResponseWriter, r *http.Request) {
+	var payload selectionData
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeErr(w, 400, "JSON 解析失败: "+err.Error())
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.loaded {
+		writeErr(w, 400, "未成功加载文件")
+		return
+	}
+	valid := make(map[string]struct{})
+	for _, r := range s.config.Registers {
+		valid[regKey(&r)] = struct{}{}
+	}
+	newSel := make(map[string]struct{})
+	for _, k := range payload.Selected {
+		if _, ok := valid[k]; ok {
+			newSel[k] = struct{}{}
+		}
+	}
+	s.exportSelection = newSel
+	s.writeSelectionFileLocked()
+	_ = s.writeExportFileLocked()
+	writeJSON(w, 200, map[string]any{
+		"selected": s.exportKeysLocked(),
+		"count":    len(s.exportSelection),
+	})
+}
+
+func (s *Service) deleteExportSelection(w http.ResponseWriter, r *http.Request) {
+	key := chi.URLParam(r, "key")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.exportSelection[key]; ok {
+		delete(s.exportSelection, key)
+		s.writeSelectionFileLocked()
+		_ = s.writeExportFileLocked()
+		writeJSON(w, 200, map[string]string{"status": "removed", "key": key})
+		return
+	}
+	writeErr(w, 404, "key 不在选择中")
 }
 
 func (s *Service) diff(w http.ResponseWriter, r *http.Request) {
@@ -327,6 +528,9 @@ func (s *Service) reload(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "重新加载失败: "+s.lastErr)
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_ = s.writeExportFileLocked()
 	writeJSON(w, 200, map[string]any{
 		"message": "重新加载成功",
 		"version": s.version,
@@ -335,21 +539,17 @@ func (s *Service) reload(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* ---------- 新增: 重启目标服务 ---------- */
+/* ---------- 重启服务 ---------- */
 
 func (s *Service) restartService(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeErr(w, 405, "Method Not Allowed")
 		return
 	}
-	// 优先使用 RestartCommand，如果提供
 	cmdLine := strings.TrimSpace(s.editConf.RestartCommand)
 	if cmdLine != "" {
 		go runShellCommand(cmdLine)
-		writeJSON(w, 200, map[string]any{
-			"status": "triggered",
-			"detail": "执行自定义命令",
-		})
+		writeJSON(w, 200, map[string]any{"status": "triggered", "detail": "执行自定义命令"})
 		return
 	}
 	svc := strings.TrimSpace(s.editConf.RestartService)
@@ -357,7 +557,6 @@ func (s *Service) restartService(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "未配置 restart_service 或 restart_command")
 		return
 	}
-	// systemctl restart
 	go func(name string) {
 		cmd := exec.Command("systemctl", "restart", name)
 		out, err := cmd.CombinedOutput()
@@ -367,10 +566,7 @@ func (s *Service) restartService(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[INFO] restart %s OK: %s", name, string(out))
 		}
 	}(svc)
-	writeJSON(w, 200, map[string]any{
-		"status": "triggered",
-		"detail": "systemctl restart " + svc,
-	})
+	writeJSON(w, 200, map[string]any{"status": "triggered", "detail": "systemctl restart " + svc})
 }
 
 func runShellCommand(cmdLine string) {
@@ -398,7 +594,6 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 }
 
 /* ---------- main ---------- */
-
 func main() {
 	svc := NewService()
 	svc.loadEditConfig()
@@ -408,19 +603,31 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+	// 前端页面
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/index.html")
 	})
 
+	// 基础配置
 	r.Get("/api/status", svc.status)
 	r.Get("/api/config", svc.getConfig)
 	r.Put("/api/config", svc.putConfig)
 	r.Post("/api/register", svc.addRegister)
 	r.Delete("/api/register/{index}", svc.deleteRegister)
-	r.Get("/api/export/yaml", svc.exportYAML)
-	r.Get("/api/diff", svc.diff)
 	r.Post("/api/reload", svc.reload)
-	r.Post("/api/restart-service", svc.restartService) // 新增
+	r.Post("/api/restart-service", svc.restartService)
+
+	// 导出（全部 / 子集）
+	r.Get("/api/export/yaml", svc.exportAllYAML)
+	r.Get("/api/export/subset.yaml", svc.exportSubsetYAML)
+
+	// 选择管理
+	r.Get("/api/export/selection", svc.getExportSelection)
+	r.Put("/api/export/selection", svc.putExportSelection)
+	r.Delete("/api/export/selection/{key}", svc.deleteExportSelection)
+
+	// Diff 占位
+	r.Get("/api/diff", svc.diff)
 
 	log.Println("Goto: http://localhost:8089/")
 	log.Fatal(http.ListenAndServe(":8089", r))
