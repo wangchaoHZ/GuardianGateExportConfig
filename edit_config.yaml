@@ -1,4 +1,6 @@
+# 目标路径：用于指定存储的变量
 target_yaml_path: "D:/CodeSource/GoProject/EditYaml/storage.yaml"
+# 导出路径：用于指定导出的变量
+export_yaml_path: "D:/CodeSource/GoProject/EditYaml/export.yaml"
+# 重启操作服务名称
 restart_service: data_center.service
-# 可选：如果你更想用自定义命令而不是 systemctl，可加：
-# restart_command: systemctl restart data_center.service

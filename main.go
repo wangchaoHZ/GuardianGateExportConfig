@@ -49,6 +49,7 @@ type Config struct {
 
 type EditConfig struct {
 	TargetPath     string `yaml:"target_yaml_path"`
+	ExportPath     string `yaml:"export_yaml_path"` // 新增：导出文件路径（可绝对或相对）
 	RestartService string `yaml:"restart_service"`
 	RestartCommand string `yaml:"restart_command"`
 }
@@ -92,7 +93,37 @@ func (s *Service) loadEditConfig() {
 		return
 	}
 }
+
 func normalizePath(p string) string { return strings.ReplaceAll(p, "\\", "/") }
+
+func (s *Service) resolveExportPath(targetAbs string) string {
+	// 若未配置 ExportPath 则默认同目录 export.yaml
+	if strings.TrimSpace(s.editConf.ExportPath) == "" {
+		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
+	}
+	raw := normalizePath(s.editConf.ExportPath)
+	// 如果不是绝对路径，则以目标文件目录作为基准
+	if !filepath.IsAbs(raw) {
+		raw = filepath.Join(filepath.Dir(targetAbs), raw)
+	}
+	abs, err := filepath.Abs(raw)
+	if err != nil {
+		log.Printf("[WARN] ExportPath 解析失败，使用默认路径: %v", err)
+		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
+	}
+	// 创建目录
+	dir := filepath.Dir(abs)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Printf("[WARN] 创建导出目录失败(%s): %v，回退默认路径", dir, err)
+		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
+	}
+	// 防止与原文件同名（如果用户把 export 指向同一个文件是不合理的）
+	if abs == targetAbs {
+		log.Printf("[WARN] export_yaml_path 与 target_yaml_path 相同，回退为同目录 export.yaml")
+		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
+	}
+	return abs
+}
 
 func (s *Service) openTarget() {
 	if s.editConf.TargetPath == "" {
@@ -120,7 +151,7 @@ func (s *Service) openTarget() {
 		return
 	}
 	if err := validateConfig(&cfg); err != nil {
-		s.lastErr = fmt.Sprintf("配置校验失败: %v", err)
+		s.lastErr = fmt.Errorf("配置校验失败: %v", err).Error()
 		return
 	}
 	s.mu.Lock()
@@ -130,12 +161,11 @@ func (s *Service) openTarget() {
 	s.path = abs
 	s.loaded = true
 	s.lastErr = ""
-	dir := filepath.Dir(abs)
-	s.exportFilePath = filepath.Join(dir, "export.yaml")
+	s.exportFilePath = s.resolveExportPath(abs)
 	s.loadSelectionFileLocked()
 	s.pruneSelectionLocked()
 	_ = s.writeExportFileLocked()
-	log.Printf("[INFO] 成功加载文件: %s version=%d export=%s", s.path, s.version, s.exportFilePath)
+	log.Printf("[INFO] 成功加载: %s version=%d export=%s", s.path, s.version, s.exportFilePath)
 }
 
 /* ---------- 校验 ---------- */
@@ -164,7 +194,7 @@ func validateConfig(cfg *Config) error {
 			seen[c] = make(map[int]struct{})
 		}
 		if _, dup := seen[c][r.Addr]; dup {
-			return fmt.Errorf("行 %d: 同一设备 %s 的寄存器地址 %d 重复", i, c, r.Addr)
+			return fmt.Errorf("行 %d: 同设备 %s 地址 %d 重复", i, c, r.Addr)
 		}
 		seen[c][r.Addr] = struct{}{}
 	}
@@ -344,6 +374,7 @@ func (s *Service) putConfig(w http.ResponseWriter, r *http.Request) {
 		"config":       s.config,
 		"export_keys":  s.exportKeysLocked(),
 		"export_count": len(s.exportSelection),
+		"export_file":  s.exportFilePath,
 	})
 }
 
@@ -372,7 +403,7 @@ func (s *Service) addRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.writeExportFileLocked()
-	writeJSON(w, 201, map[string]any{"version": s.version, "config": s.config})
+	writeJSON(w, 201, map[string]any{"version": s.version, "config": s.config, "export_file": s.exportFilePath})
 }
 
 func (s *Service) deleteRegister(w http.ResponseWriter, r *http.Request) {
@@ -410,7 +441,7 @@ func (s *Service) deleteRegister(w http.ResponseWriter, r *http.Request) {
 		s.writeSelectionFileLocked()
 	}
 	_ = s.writeExportFileLocked()
-	writeJSON(w, 200, map[string]any{"version": s.version, "rows": len(s.config.Registers)})
+	writeJSON(w, 200, map[string]any{"version": s.version, "rows": len(s.config.Registers), "export_file": s.exportFilePath})
 }
 
 func (s *Service) exportAllYAML(w http.ResponseWriter, r *http.Request) {
@@ -488,8 +519,9 @@ func (s *Service) putExportSelection(w http.ResponseWriter, r *http.Request) {
 	s.writeSelectionFileLocked()
 	_ = s.writeExportFileLocked()
 	writeJSON(w, 200, map[string]any{
-		"selected": s.exportKeysLocked(),
-		"count":    len(s.exportSelection),
+		"selected":    s.exportKeysLocked(),
+		"count":       len(s.exportSelection),
+		"export_file": s.exportFilePath,
 	})
 }
 
@@ -501,7 +533,7 @@ func (s *Service) deleteExportSelection(w http.ResponseWriter, r *http.Request) 
 		delete(s.exportSelection, key)
 		s.writeSelectionFileLocked()
 		_ = s.writeExportFileLocked()
-		writeJSON(w, 200, map[string]string{"status": "removed", "key": key})
+		writeJSON(w, 200, map[string]string{"status": "removed", "key": key, "export_file": s.exportFilePath})
 		return
 	}
 	writeErr(w, 404, "key 不在选择中")
@@ -532,10 +564,11 @@ func (s *Service) reload(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	_ = s.writeExportFileLocked()
 	writeJSON(w, 200, map[string]any{
-		"message": "重新加载成功",
-		"version": s.version,
-		"rows":    len(s.config.Registers),
-		"path":    s.path,
+		"message":     "重新加载成功",
+		"version":     s.version,
+		"rows":        len(s.config.Registers),
+		"path":        s.path,
+		"export_file": s.exportFilePath,
 	})
 }
 
@@ -603,7 +636,6 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// 前端页面
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/index.html")
 	})

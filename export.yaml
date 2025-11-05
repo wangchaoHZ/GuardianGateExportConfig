@@ -12,15 +12,6 @@ influxdb:
 registers:
     - collector: BMU1
       reg_type: input
-      addr: 2
-      zh_name: 系统总功率
-      en_name: power
-      unit: KW
-      decimals: 1
-      type: int16
-      length: 1
-    - collector: BMU1
-      reg_type: input
       addr: 3
       zh_name: 系统总电压
       en_name: volt
@@ -108,4 +99,94 @@ registers:
       unit: V
       decimals: 1
       type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 13
+      zh_name: 子1-电堆1
+      en_name: zi1_stack1
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 14
+      zh_name: 子1-电堆2
+      en_name: zi1_stack2
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 15
+      zh_name: 子1-电堆3
+      en_name: zi1_stack3
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 16
+      zh_name: 子1-电堆4
+      en_name: zi1_stack4
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 17
+      zh_name: 子1-电堆5
+      en_name: zi1_stack5
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 18
+      zh_name: 子1-电堆6
+      en_name: zi1_stack6
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 19
+      zh_name: 子1-电堆7
+      en_name: zi1_stack7
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 20
+      zh_name: 子1-电堆8
+      en_name: zi1_stack8
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 21
+      zh_name: 子1-电堆9
+      en_name: zi1_stack9
+      unit: V
+      decimals: 1
+      type: uint16
+      length: 1
+    - collector: BMU1
+      reg_type: input
+      addr: 22
+      zh_name: 子1-RCV
+      en_name: zi1_rcv
+      unit: mV
+      decimals: 1
+      type: int16
       length: 1

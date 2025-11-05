@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
-    <title>寄存器配置与导出子集</title>
+    <title>BMU数据存储及导出配置</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
         :root {
@@ -81,7 +81,6 @@
             font-weight:600;color:#f56c6c;font-size:12px;
         }
         .action-buttons button.small{margin-right:4px;}
-        /* 导出状态徽章列 */
         .export-badge{
             display:inline-block;
             min-width:70px;
@@ -118,16 +117,16 @@
 <body>
 <div class="app">
     <div class="topbar">
-        <div class="title">寄存器配置与子集导出</div>
+        <div class="title">BMU数据存储及导出配置</div>
         <span id="status" class="status">初始化...</span>
     </div>
 
     <div class="toolbar">
-        <button id="reloadBtn" class="success">重载</button>
-        <button id="addRowBtn" class="primary" disabled>新增行</button>
+        <button id="reloadBtn" class="primary">重载</button>
+        <button id="addRowBtn" class="primary" disabled>新增</button>
         <button id="saveBtn" class="primary" disabled>保存 (Ctrl+S)</button>
-        <button id="exportAllBtn" disabled>下载全部 YAML</button>
-        <button id="exportSubsetBtn" class="success" disabled>下载导出子集 export.yaml</button>
+        <button id="exportAllBtn" class="primary" disabled>下载存储配置</button>
+        <button id="exportSubsetBtn" class="primary" disabled>下载导出配置</button>
         <button id="restartSvcBtn" class="danger" disabled>重启采集服务</button>
         <input id="filterInput" type="text" placeholder="过滤 (设备 / 英文 / 中文)" disabled />
         <span id="exportCountSpan" style="font-size:12px;color:#606266;">已选导出: 0</span>
@@ -159,14 +158,14 @@
 
     <footer>
         <div class="brand-line">
-            Guardian Export • export.yaml 同目录自动生成
+            Dalian Bingshan Guardian Automation Co., Ltd.
         </div>
     </footer>
 </div>
 
 <script>
     let currentVersion=0, config=null, registers=[], dirtyRows=new Set(), loaded=false;
-    let exportSelected=new Set(); // key = collector|reg_type|addr
+    let exportSelected=new Set();
 
     const statusSpan=document.getElementById("status");
     const msgDiv=document.getElementById("msg");
@@ -252,12 +251,10 @@
             const tr=document.createElement("tr");
             tr.dataset.index=i;
             if(dirtyRows.has(i)) tr.classList.add("dirty");
-
-            // 前 10 列
             const cells=[i+1,r.collector,r.reg_type,r.addr,r.zh_name,r.en_name,r.unit,r.decimals,r.type,r.length];
             cells.forEach((val,cIdx)=>{
                 const td=document.createElement("td");
-                if(cIdx>0){ // 序号不可编辑，其余可编辑
+                if(cIdx>0){
                     td.contentEditable="true";
                     td.addEventListener("input",()=>markDirty(i));
                     td.addEventListener("blur",()=>{ updateField(i,cIdx,td.textContent.trim()); validateCell(td,i,cIdx); });
@@ -265,16 +262,12 @@
                 td.textContent=val;
                 tr.appendChild(td);
             });
-
-            // 导出状态列
             const stateTd=document.createElement("td");
             const badge=document.createElement("span");
             badge.className="export-badge " + (exportSelected.has(k) ? "selected" : "unselected");
             badge.textContent=exportSelected.has(k) ? "已选" : "未选";
             stateTd.appendChild(badge);
             tr.appendChild(stateTd);
-
-            // 操作列
             const op=document.createElement("td");
             op.className="action-buttons";
             op.appendChild(btn("复制",()=>copyRow(i),"small primary"));
@@ -287,7 +280,6 @@
                 op.appendChild(btn("加入导出",()=>toggleExport(k,true),"small success"));
             }
             tr.appendChild(op);
-
             tableBody.appendChild(tr);
         });
     }
@@ -321,7 +313,6 @@
             case 8:r.type=val;break;
             case 9:r.length=parseInt(val,10)||0;break;
         }
-        // 修改关键字段后保存时后端会清理失效选择
     }
 
     function validateCell(td,i,col){
@@ -428,7 +419,7 @@
         tableBody.querySelectorAll("tr").forEach(tr=>tr.classList.remove("dirty"));
         statusSpan.textContent="保存成功 version="+currentVersion;
         showInfo("保存完成");
-        await loadExportSelection(); // 可能清理失效
+        await loadExportSelection();
     }
 
     async function reloadFromDisk(){
