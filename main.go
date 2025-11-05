@@ -49,7 +49,7 @@ type Config struct {
 
 type EditConfig struct {
 	TargetPath     string `yaml:"target_yaml_path"`
-	ExportPath     string `yaml:"export_yaml_path"` // 新增：导出文件路径（可绝对或相对）
+	ExportPath     string `yaml:"export_yaml_path"` // 导出文件路径（可绝对或相对）
 	RestartService string `yaml:"restart_service"`
 	RestartCommand string `yaml:"restart_command"`
 }
@@ -97,12 +97,10 @@ func (s *Service) loadEditConfig() {
 func normalizePath(p string) string { return strings.ReplaceAll(p, "\\", "/") }
 
 func (s *Service) resolveExportPath(targetAbs string) string {
-	// 若未配置 ExportPath 则默认同目录 export.yaml
 	if strings.TrimSpace(s.editConf.ExportPath) == "" {
 		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
 	}
 	raw := normalizePath(s.editConf.ExportPath)
-	// 如果不是绝对路径，则以目标文件目录作为基准
 	if !filepath.IsAbs(raw) {
 		raw = filepath.Join(filepath.Dir(targetAbs), raw)
 	}
@@ -111,13 +109,11 @@ func (s *Service) resolveExportPath(targetAbs string) string {
 		log.Printf("[WARN] ExportPath 解析失败，使用默认路径: %v", err)
 		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
 	}
-	// 创建目录
 	dir := filepath.Dir(abs)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		log.Printf("[WARN] 创建导出目录失败(%s): %v，回退默认路径", dir, err)
 		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
 	}
-	// 防止与原文件同名（如果用户把 export 指向同一个文件是不合理的）
 	if abs == targetAbs {
 		log.Printf("[WARN] export_yaml_path 与 target_yaml_path 相同，回退为同目录 export.yaml")
 		return filepath.Join(filepath.Dir(targetAbs), "export.yaml")
@@ -170,6 +166,14 @@ func (s *Service) openTarget() {
 
 /* ---------- 校验 ---------- */
 func validateConfig(cfg *Config) error {
+	// 新增: period_ms 校验 (1s ~ 60s) 且要求是 1000 的整数倍
+	if cfg.PeriodMs < 1000 || cfg.PeriodMs > 60000 {
+		return fmt.Errorf("period_ms 超范围(1000..60000)")
+	}
+	if cfg.PeriodMs%1000 != 0 {
+		return fmt.Errorf("period_ms 必须是 1000 的整数倍")
+	}
+
 	typeLen := map[string]int{"int16": 1, "uint16": 1, "float32": 2}
 	seen := make(map[string]map[int]struct{})
 	for i, r := range cfg.Registers {

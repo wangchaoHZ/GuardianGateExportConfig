@@ -1,5 +1,5 @@
 write_mode: frame
-period_ms: 5000
+period_ms: 3000
 per_second_sample_interval_ms: 250
 per_second_fallback_policy: last
 per_second_timestamp_edge: end
@@ -10,6 +10,15 @@ influxdb:
     influx_bucket: mbkt
     influx_measurement: data_center
 registers:
+    - collector: BMU1
+      reg_type: input
+      addr: 2
+      zh_name: 系统总功率
+      en_name: power
+      unit: KW
+      decimals: 1
+      type: int16
+      length: 1
     - collector: BMU1
       reg_type: input
       addr: 3

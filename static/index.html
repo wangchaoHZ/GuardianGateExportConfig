@@ -7,7 +7,6 @@
     <style>
         :root {
             --bg-color:#f5f7fa;
-            --card-bg:#fff;
             --primary:#409EFF;
             --primary-hover:#66b1ff;
             --danger:#f56c6c;
@@ -41,7 +40,10 @@
         }
         .topbar .title{font-size:16px;font-weight:600;letter-spacing:.5px;}
         .topbar .status{margin-left:auto;font-size:13px;color:var(--text-secondary);}
-        .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+        .toolbar{
+            display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;
+            align-items:center;
+        }
         button{
             font:inherit;padding:6px 14px;border:1px solid var(--border);
             background:#fff;color:var(--text);border-radius:var(--radius);
@@ -56,12 +58,16 @@
         button.danger{background:var(--danger);border-color:var(--danger);color:#fff;}
         button.danger:hover{background:var(--danger-hover);}
         button.small{padding:4px 10px;font-size:12px;}
-        input[type="text"]{
+        input[type="text"],input[type="number"]{
             padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);
-            background:#fff;outline:none;width:320px;transition:.15s ease;font:inherit;
+            background:#fff;outline:none;transition:.15s ease;font:inherit;
         }
-        input[type="text"]:focus{border-color:var(--primary);box-shadow:0 0 0 1px rgba(64,158,255,.15);}
-        #msg{min-height:18px;margin:4px 0 6px;font-size:12px;color:var(--danger);white-space:pre-line;}
+        input[type="text"]:focus,input[type="number"]:focus{
+            border-color:var(--primary);box-shadow:0 0 0 1px rgba(64,158,255,.15);
+        }
+        #filterInput{width:240px;}
+        #periodSecInput{width:55px;text-align:center;padding:4px 6px;}
+        #msg{min-height:18px;margin:4px 0 6px;font-size:12px;color:#f56c6c;white-space:pre-line;}
         .table-wrapper{
             background:#fff;border:1px solid var(--border-light);
             border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
@@ -76,40 +82,28 @@
         tr.dirty td[contenteditable="true"]{background:#fff7e6;}
         .error-cell{background:#ffecec !important;position:relative;}
         .error-cell::after{
-            content:"!";
-            position:absolute;top:3px;right:6px;
+            content:"!";position:absolute;top:3px;right:6px;
             font-weight:600;color:#f56c6c;font-size:12px;
         }
         .action-buttons button.small{margin-right:4px;}
         .export-badge{
-            display:inline-block;
-            min-width:70px;
-            text-align:center;
-            padding:4px 10px;
-            border-radius:16px;
-            font-size:12px;
-            font-weight:500;
-            line-height:1;
+            display:inline-block;min-width:70px;text-align:center;
+            padding:4px 10px;border-radius:16px;font-size:12px;font-weight:500;
+            line-height:1;letter-spacing:.5px;user-select:none;
+        }
+        .export-badge.selected{background:var(--success);color:#fff;box-shadow:0 0 0 1px var(--success-soft);}
+        .export-badge.unselected{background:var(--gray);color:#fff;box-shadow:0 0 0 1px var(--gray-soft);opacity:.85;}
+        .mini-label{
+            font-size:12px;color:#606266;font-weight:500;
             letter-spacing:.5px;
-            user-select:none;
-        }
-        .export-badge.selected{
-            background:var(--success);
-            color:#fff;
-            box-shadow:0 0 0 1px var(--success-soft);
-        }
-        .export-badge.unselected{
-            background:var(--gray);
-            color:#fff;
-            box-shadow:0 0 0 1px var(--gray-soft);
-            opacity:.85;
         }
         footer{margin-top:26px;text-align:center;font-size:12px;color:#7d8a99;letter-spacing:.3px;font-weight:600;}
         footer .brand-line{font-size:13px;color:#5a646e;}
         @media (max-width:1320px){
             th,td{white-space:nowrap;font-size:12px;padding:6px 8px;}
             button{padding:5px 12px;}
-            input[type="text"]{width:240px;}
+            #filterInput{width:200px;}
+            #periodSecInput{width:48px;}
             .export-badge{padding:3px 8px;font-size:11px;min-width:56px;}
         }
     </style>
@@ -128,6 +122,10 @@
         <button id="exportAllBtn" class="primary" disabled>下载存储配置</button>
         <button id="exportSubsetBtn" class="primary" disabled>下载导出配置</button>
         <button id="restartSvcBtn" class="danger" disabled>重启采集服务</button>
+
+        <label class="mini-label" for="periodSecInput">存储频率(S)</label>
+        <input id="periodSecInput" type="number" min="1" max="60" step="1" disabled />
+
         <input id="filterInput" type="text" placeholder="过滤 (设备 / 英文 / 中文)" disabled />
         <span id="exportCountSpan" style="font-size:12px;color:#606266;">已选导出: 0</span>
     </div>
@@ -176,6 +174,7 @@
     const exportSubsetBtn=document.getElementById("exportSubsetBtn");
     const restartSvcBtn=document.getElementById("restartSvcBtn");
     const filterInput=document.getElementById("filterInput");
+    const periodSecInput=document.getElementById("periodSecInput");
     const exportCountSpan=document.getElementById("exportCountSpan");
     const tableBody=document.getElementById("tableBody");
 
@@ -183,7 +182,7 @@
     function showInfo(m){ msgDiv.style.color="#409EFF"; msgDiv.textContent=m; }
     function clearMsg(){ msgDiv.textContent=""; }
     function setEnabled(e){
-        [addRowBtn, saveBtn, exportAllBtn, exportSubsetBtn, filterInput, restartSvcBtn]
+        [addRowBtn, saveBtn, exportAllBtn, exportSubsetBtn, filterInput, restartSvcBtn, periodSecInput]
             .forEach(el=> el.disabled=!e);
         if(!e) dirtyRows.clear();
     }
@@ -213,6 +212,10 @@
         currentVersion=data.version;
         config=data.config;
         registers=JSON.parse(JSON.stringify(config.registers));
+        let sec = Math.round((config.period_ms || 5000)/1000);
+        if(sec < 1) sec = 1;
+        if(sec > 60) sec = 60;
+        periodSecInput.value = sec;
         renderTable();
         clearMsg();
     }
@@ -230,9 +233,7 @@
         exportCountSpan.textContent="已选导出: "+exportSelected.size;
     }
 
-    function regKey(r){
-        return `${r.collector}|${r.reg_type}|${r.addr}`;
-    }
+    function regKey(r){ return `${r.collector}|${r.reg_type}|${r.addr}`; }
 
     function filterRows(){
         const kw=filterInput.value.trim().toLowerCase();
@@ -386,6 +387,14 @@
     }
 
     filterInput.addEventListener("input",()=>renderTable());
+    periodSecInput.addEventListener("change",()=>{
+        let v = parseInt(periodSecInput.value,10);
+        if(isNaN(v)) v = 5;
+        if(v < 1) v = 1;
+        if(v > 60) v = 60;
+        periodSecInput.value = v;
+    });
+
     reloadBtn.addEventListener("click",()=>reloadFromDisk());
     saveBtn.addEventListener("click",()=>saveAll());
     exportAllBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/yaml"; });
@@ -399,8 +408,23 @@
         }
     });
 
+    function readPeriodMs(){
+        let sec = parseInt(periodSecInput.value,10);
+        if(isNaN(sec)) sec = 5;
+        if(sec < 1) sec = 1;
+        if(sec > 60) sec = 60;
+        periodSecInput.value = sec;
+        return sec * 1000;
+    }
+
     async function saveAll(){
         if(!config){ showErr("未加载配置"); return; }
+        const periodMs = readPeriodMs();
+        if(periodMs < 1000 || periodMs > 60000){
+            showErr("存储频率超范围 (1~60 秒)");
+            return;
+        }
+        config.period_ms = periodMs;
         config.registers=registers;
         const payload={version:currentVersion,config};
         clearMsg();
