@@ -665,6 +665,6 @@ func main() {
 	// Diff 占位
 	r.Get("/api/diff", svc.diff)
 
-	log.Println("Goto: http://localhost:8089/")
-	log.Fatal(http.ListenAndServe(":8089", r))
+	log.Println("Goto: http://localhost:8002/")
+	log.Fatal(http.ListenAndServe(":8002", r))
 }
