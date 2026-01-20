@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 if ($ArgsOutputName) {
     $OutputName = $ArgsOutputName
 } else {
-    $OutputName = "DefaultAppName"
+    $OutputName = "editor"
 }
 
 # 打印开始信息
