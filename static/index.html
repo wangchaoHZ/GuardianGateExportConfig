@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
-    <title>BMU数据存储及导出配置</title>
+    <title>BMU点表分发与导出工具</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
         :root {
@@ -58,15 +58,14 @@
         button.danger{background:var(--danger);border-color:var(--danger);color:#fff;}
         button.danger:hover{background:var(--danger-hover);}
         button.small{padding:4px 10px;font-size:12px;}
-        input[type="text"],input[type="number"]{
+        input[type="text"]{
             padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);
             background:#fff;outline:none;transition:.15s ease;font:inherit;
         }
-        input[type="text"]:focus,input[type="number"]:focus{
+        input[type="text"]:focus{
             border-color:var(--primary);box-shadow:0 0 0 1px rgba(64,158,255,.15);
         }
-        #filterInput{width:240px;}
-        #periodSecInput{width:55px;text-align:center;padding:4px 6px;}
+        #filterInput{width:240px; margin-left:10px;}
         #msg{min-height:18px;margin:4px 0 6px;font-size:12px;color:#f56c6c;white-space:pre-line;}
         .table-wrapper{
             background:#fff;border:1px solid var(--border-light);
@@ -93,17 +92,12 @@
         }
         .export-badge.selected{background:var(--success);color:#fff;box-shadow:0 0 0 1px var(--success-soft);}
         .export-badge.unselected{background:var(--gray);color:#fff;box-shadow:0 0 0 1px var(--gray-soft);opacity:.85;}
-        .mini-label{
-            font-size:12px;color:#606266;font-weight:500;
-            letter-spacing:.5px;
-        }
         footer{margin-top:26px;text-align:center;font-size:12px;color:#7d8a99;letter-spacing:.3px;font-weight:600;}
         footer .brand-line{font-size:13px;color:#5a646e;}
         @media (max-width:1320px){
             th,td{white-space:nowrap;font-size:12px;padding:6px 8px;}
             button{padding:5px 12px;}
             #filterInput{width:200px;}
-            #periodSecInput{width:48px;}
             .export-badge{padding:3px 8px;font-size:11px;min-width:56px;}
         }
     </style>
@@ -111,23 +105,20 @@
 <body>
 <div class="app">
     <div class="topbar">
-        <div class="title">BMU数据存储及导出配置</div>
+        <div class="title">BMU点表分发与导出工具</div>
         <span id="status" class="status">初始化...</span>
     </div>
 
     <div class="toolbar">
-        <button id="reloadBtn" class="primary">重载</button>
-        <button id="addRowBtn" class="primary" disabled>新增</button>
-        <button id="saveBtn" class="primary" disabled>保存 (Ctrl+S)</button>
-        <button id="exportAllBtn" class="primary" disabled>下载存储配置</button>
-        <button id="exportSubsetBtn" class="primary" disabled>下载导出配置</button>
+        <button id="reloadBtn" class="primary">重载文件</button>
+        <button id="addRowBtn" class="primary" disabled>新增寄存器</button>
+        <button id="saveBtn" class="primary" disabled>保存更改 (Ctrl+S)</button>
+        <button id="exportAllBtn" class="primary" disabled>下载全量点表 (Excel)</button>
+        <button id="exportSubsetBtn" class="primary" disabled>下载导出点表 (Excel)</button>
         <button id="restartSvcBtn" class="danger" disabled>重启采集服务</button>
 
-        <label class="mini-label" for="periodSecInput">存储频率(S)</label>
-        <input id="periodSecInput" type="number" min="1" max="60" step="1" disabled />
-
         <input id="filterInput" type="text" placeholder="过滤 (设备 / 英文 / 中文)" disabled />
-        <span id="exportCountSpan" style="font-size:12px;color:#606266;">已选导出: 0</span>
+        <span id="exportCountSpan" style="font-size:12px;color:#606266;margin-left:10px;">已选导出: 0</span>
     </div>
 
     <div id="msg"></div>
@@ -143,7 +134,7 @@
                 <th>中文标签</th>
                 <th>英文标签</th>
                 <th>单位</th>
-                <th>小数位</th>
+                <th>倍率</th>
                 <th>数据类型</th>
                 <th>数据长度</th>
                 <th>导出状态</th>
@@ -174,7 +165,6 @@
     const exportSubsetBtn=document.getElementById("exportSubsetBtn");
     const restartSvcBtn=document.getElementById("restartSvcBtn");
     const filterInput=document.getElementById("filterInput");
-    const periodSecInput=document.getElementById("periodSecInput");
     const exportCountSpan=document.getElementById("exportCountSpan");
     const tableBody=document.getElementById("tableBody");
 
@@ -182,7 +172,7 @@
     function showInfo(m){ msgDiv.style.color="#409EFF"; msgDiv.textContent=m; }
     function clearMsg(){ msgDiv.textContent=""; }
     function setEnabled(e){
-        [addRowBtn, saveBtn, exportAllBtn, exportSubsetBtn, filterInput, restartSvcBtn, periodSecInput]
+        [addRowBtn, saveBtn, exportAllBtn, exportSubsetBtn, filterInput, restartSvcBtn]
             .forEach(el=> el.disabled=!e);
         if(!e) dirtyRows.clear();
     }
@@ -211,11 +201,7 @@
         const data=await resp.json();
         currentVersion=data.version;
         config=data.config;
-        registers=JSON.parse(JSON.stringify(config.registers));
-        let sec = Math.round((config.period_ms || 5000)/1000);
-        if(sec < 1) sec = 1;
-        if(sec > 60) sec = 60;
-        periodSecInput.value = sec;
+        registers=JSON.parse(JSON.stringify(config.registers || []));
         renderTable();
         clearMsg();
     }
@@ -320,9 +306,10 @@
         td.classList.remove("error-cell");
         const r=registers[i];
         if(col===3 && !(r.addr>0 && r.addr<=65535)) td.classList.add("error-cell");
-        if(col===8 && !["int16","uint16","float32"].includes(r.type)) td.classList.add("error-cell");
+        // 如果想支持更多数据类型，可以在这加
+        if(col===8 && !["int16","uint16","float32","int32","uint32"].includes(r.type)) td.classList.add("error-cell");
         if(col===9){
-            const rule={int16:1,uint16:1,float32:2}[r.type];
+            const rule={int16:1,uint16:1,float32:2,int32:2,uint32:2}[r.type];
             if(rule && r.length!==rule) td.classList.add("error-cell");
         }
         if(col===3){
@@ -387,18 +374,11 @@
     }
 
     filterInput.addEventListener("input",()=>renderTable());
-    periodSecInput.addEventListener("change",()=>{
-        let v = parseInt(periodSecInput.value,10);
-        if(isNaN(v)) v = 5;
-        if(v < 1) v = 1;
-        if(v > 60) v = 60;
-        periodSecInput.value = v;
-    });
 
     reloadBtn.addEventListener("click",()=>reloadFromDisk());
     saveBtn.addEventListener("click",()=>saveAll());
-    exportAllBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/yaml"; });
-    exportSubsetBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/subset.yaml"; });
+    exportAllBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/all.xlsx"; });
+    exportSubsetBtn.addEventListener("click",()=>{ if(loaded) window.location="/api/export/subset.xlsx"; });
     restartSvcBtn.addEventListener("click", ()=>restartService());
 
     document.addEventListener("keydown",e=>{
@@ -408,23 +388,8 @@
         }
     });
 
-    function readPeriodMs(){
-        let sec = parseInt(periodSecInput.value,10);
-        if(isNaN(sec)) sec = 5;
-        if(sec < 1) sec = 1;
-        if(sec > 60) sec = 60;
-        periodSecInput.value = sec;
-        return sec * 1000;
-    }
-
     async function saveAll(){
         if(!config){ showErr("未加载配置"); return; }
-        const periodMs = readPeriodMs();
-        if(periodMs < 1000 || periodMs > 60000){
-            showErr("存储频率超范围 (1~60 秒)");
-            return;
-        }
-        config.period_ms = periodMs;
         config.registers=registers;
         const payload={version:currentVersion,config};
         clearMsg();
@@ -442,7 +407,7 @@
         dirtyRows.clear();
         tableBody.querySelectorAll("tr").forEach(tr=>tr.classList.remove("dirty"));
         statusSpan.textContent="保存成功 version="+currentVersion;
-        showInfo("保存完成");
+        showInfo("Excel 点表保存完成");
         await loadExportSelection();
     }
 

@@ -1,6 +1,6 @@
 # 目标路径：用于指定存储的变量
-target_yaml_path: "D:/CodeSource/GoProject/EditYaml/storage.yaml"
+target_excel_path: "D:/ProjectRepo/GO_OTHERS/VMain/storage.xlsx"
 # 导出路径：用于指定导出的变量
-export_yaml_path: "D:/CodeSource/GoProject/EditYaml/export.yaml"
+export_excel_path: "D:/ProjectRepo/GO_OTHERS/VMain/export.xlsx"
 # 重启操作服务名称
 restart_service: data_center.service
