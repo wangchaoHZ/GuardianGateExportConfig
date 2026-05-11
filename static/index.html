@@ -305,8 +305,8 @@
     function validateCell(td,i,col){
         td.classList.remove("error-cell");
         const r=registers[i];
-        if(col===3 && !(r.addr>0 && r.addr<=65535)) td.classList.add("error-cell");
-        // 如果想支持更多数据类型，可以在这加
+        // 【关键修改点】：允许 addr >= 0
+        if(col===3 && !(r.addr>=0 && r.addr<=65535)) td.classList.add("error-cell");
         if(col===8 && !["int16","uint16","float32","int32","uint32"].includes(r.type)) td.classList.add("error-cell");
         if(col===9){
             const rule={int16:1,uint16:1,float32:2,int32:2,uint32:2}[r.type];
@@ -366,11 +366,12 @@
         markDirty(registers.length-1);
     });
 
+    // 【关键修改点】：搜索空闲地址从 0 开始
     function nextFreeAddr(collector){
         const used=new Set();
         registers.forEach(r=>{ if(r.collector===collector) used.add(r.addr); });
-        for(let a=1;a<=65535;a++) if(!used.has(a)) return a;
-        return 1;
+        for(let a=0;a<=65535;a++) if(!used.has(a)) return a;
+        return 0;
     }
 
     filterInput.addEventListener("input",()=>renderTable());
@@ -390,6 +391,13 @@
 
     async function saveAll(){
         if(!config){ showErr("未加载配置"); return; }
+
+        // 【建议增加】：保存前预防提交带有错误状态的单元格
+        if (document.querySelector('.error-cell')) {
+            showErr("保存失败：请先修正表格中的红色错误数据！");
+            return;
+        }
+
         config.registers=registers;
         const payload={version:currentVersion,config};
         clearMsg();

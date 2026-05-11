@@ -108,7 +108,7 @@ func (s *Service) resolveExportPath(targetAbs string) string {
 	return abs
 }
 
-// ===== 核心：从 Excel 加载寄存器 =====
+// ===== 从 Excel 加载寄存器 =====
 func loadRegistersFromExcel(filename string) ([]Register, error) {
 	f, err := excelize.OpenFile(filename)
 	if err != nil {
@@ -160,7 +160,7 @@ func loadRegistersFromExcel(filename string) ([]Register, error) {
 	return regs, nil
 }
 
-// ===== 核心：将寄存器写入 Excel =====
+// ===== 将寄存器写入 Excel =====
 func buildExcel(regs []Register) (*excelize.File, error) {
 	f := excelize.NewFile()
 	sheet := "Sheet1"
@@ -189,7 +189,6 @@ func (s *Service) openTarget() {
 		return
 	}
 
-	// 如果文件不存在，自动创建一个空的模板
 	if _, err := os.Stat(abs); os.IsNotExist(err) {
 		log.Printf("[INFO] 源文件不存在，自动创建模板: %s", abs)
 		emptyF, _ := buildExcel([]Register{})
@@ -225,8 +224,9 @@ func validateConfig(cfg *Config) error {
 		if c == "" {
 			return fmt.Errorf("行 %d: 设备不能为空", i+1)
 		}
-		if r.Addr <= 0 || r.Addr > 65535 {
-			return fmt.Errorf("行 %d: addr超范围(1..65535)", i+1)
+		// 【关键修改点】：允许 addr 为 0 (从 <= 0 修改为 < 0)
+		if r.Addr < 0 || r.Addr > 65535 {
+			return fmt.Errorf("行 %d: addr超范围(0..65535)", i+1)
 		}
 		if exp, ok := typeLen[r.Type]; ok && r.Length != exp {
 			return fmt.Errorf("行 %d: 类型 %s 需要 length=%d 实际=%d", i+1, r.Type, exp, r.Length)
@@ -253,7 +253,6 @@ func (s *Service) saveUnsafe() error {
 	}
 	defer f.Close()
 
-	// 【修改点】：临时文件以 .tmp.xlsx 结尾，骗过 excelize 的格式校验
 	tmp := s.path + ".tmp.xlsx"
 	if err := f.SaveAs(tmp); err != nil {
 		return err
@@ -330,7 +329,6 @@ func (s *Service) writeExportExcelLocked() error {
 	}
 	defer f.Close()
 
-	// 【修改点】：临时文件以 .tmp.xlsx 结尾
 	tmp := s.exportFilePath + ".tmp.xlsx"
 	if err := f.SaveAs(tmp); err != nil {
 		return err
@@ -399,9 +397,8 @@ func (s *Service) putConfig(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Service) addRegister(w http.ResponseWriter, r *http.Request) { /* 同原逻辑，省略重复代码...略微调整适配Config */
-}
-func (s *Service) deleteRegister(w http.ResponseWriter, r *http.Request) { /* 同原逻辑... */ }
+func (s *Service) addRegister(w http.ResponseWriter, r *http.Request)    {}
+func (s *Service) deleteRegister(w http.ResponseWriter, r *http.Request) {}
 
 func (s *Service) exportAllExcel(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
@@ -462,7 +459,6 @@ func (s *Service) reload(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"message": "重新加载成功", "version": s.version})
 }
 
-/* ---------- 重启服务等辅助函数 (略微精简) ---------- */
 func (s *Service) restartService(w http.ResponseWriter, r *http.Request) {
 	if s.editConf.RestartService != "" {
 		go exec.Command("systemctl", "restart", s.editConf.RestartService).Run()
@@ -496,7 +492,6 @@ func main() {
 	r.Post("/api/reload", svc.reload)
 	r.Post("/api/restart-service", svc.restartService)
 
-	// 新增：下载 Excel 文件
 	r.Get("/api/export/all.xlsx", svc.exportAllExcel)
 	r.Get("/api/export/subset.xlsx", svc.exportSubsetExcel)
 
