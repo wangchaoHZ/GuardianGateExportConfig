@@ -224,7 +224,7 @@ func validateConfig(cfg *Config) error {
 		if c == "" {
 			return fmt.Errorf("行 %d: 设备不能为空", i+1)
 		}
-		// 【关键修改点】：允许 addr 为 0 (从 <= 0 修改为 < 0)
+		// 【已修复】：允许 addr 为 0
 		if r.Addr < 0 || r.Addr > 65535 {
 			return fmt.Errorf("行 %d: addr超范围(0..65535)", i+1)
 		}
@@ -460,10 +460,21 @@ func (s *Service) reload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) restartService(w http.ResponseWriter, r *http.Request) {
-	if s.editConf.RestartService != "" {
-		go exec.Command("systemctl", "restart", s.editConf.RestartService).Run()
+	if s.editConf.RestartService == "" {
+		writeErr(w, 400, "edit_config.yaml 中未配置重启服务名称")
+		return
 	}
-	writeJSON(w, 200, map[string]any{"status": "triggered"})
+
+	// 【已修复】：去掉 go，同步等待重启命令执行完成
+	cmd := exec.Command("systemctl", "restart", s.editConf.RestartService)
+	err := cmd.Run()
+	if err != nil {
+		writeErr(w, 500, "服务重启命令执行失败: "+err.Error())
+		return
+	}
+
+	// 明确返回成功信息给前端
+	writeJSON(w, 200, map[string]any{"message": "重启采集服务成功"})
 }
 
 func writeErr(w http.ResponseWriter, code int, msg string) {

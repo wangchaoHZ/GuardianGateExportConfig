@@ -305,7 +305,7 @@
     function validateCell(td,i,col){
         td.classList.remove("error-cell");
         const r=registers[i];
-        // 【关键修改点】：允许 addr >= 0
+        // 【已修复】：允许 addr >= 0
         if(col===3 && !(r.addr>=0 && r.addr<=65535)) td.classList.add("error-cell");
         if(col===8 && !["int16","uint16","float32","int32","uint32"].includes(r.type)) td.classList.add("error-cell");
         if(col===9){
@@ -366,7 +366,7 @@
         markDirty(registers.length-1);
     });
 
-    // 【关键修改点】：搜索空闲地址从 0 开始
+    // 【已修复】：搜索空闲地址从 0 开始
     function nextFreeAddr(collector){
         const used=new Set();
         registers.forEach(r=>{ if(r.collector===collector) used.add(r.addr); });
@@ -392,7 +392,7 @@
     async function saveAll(){
         if(!config){ showErr("未加载配置"); return; }
 
-        // 【建议增加】：保存前预防提交带有错误状态的单元格
+        // 【已修复】：保存前校验并拦截错误数据
         if (document.querySelector('.error-cell')) {
             showErr("保存失败：请先修正表格中的红色错误数据！");
             return;
@@ -434,17 +434,18 @@
         showInfo("重载完成");
     }
 
+    // 【已修复】：优化重启服务的提示逻辑，读取后端的 message
     async function restartService(){
         if(!confirm("确认重启采集服务?")) return;
         restartSvcBtn.disabled=true;
-        showInfo("正在请求重启...");
+        showInfo("正在重启采集服务，请稍候...");
         try{
             const resp=await fetch("/api/restart-service",{method:"POST"});
             const data=await resp.json().catch(()=>null);
             if(!resp.ok){
                 showErr(data && data.error ? ("重启失败: "+data.error) : "重启失败");
             }else{
-                showInfo("重启已触发: "+(data.detail||""));
+                showInfo(data && data.message ? data.message : "重启成功");
             }
         }catch(e){
             showErr("请求异常: "+e.message);
